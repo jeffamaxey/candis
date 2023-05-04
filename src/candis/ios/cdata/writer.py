@@ -25,7 +25,7 @@ def write(path, dataset, delimiter = ','):
         for attr in dataset['attributes']:
             tag   = get_attribute_tag(attr)
             name  = attr['name']
-            cname = (tag + ' ' + name) if tag else name
+            cname = f'{tag} {name}' if tag else name
 
             cnames.append(cname)
 

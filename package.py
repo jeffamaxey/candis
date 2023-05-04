@@ -24,43 +24,32 @@ with open(srcpath) as f:
 	exec(code)
 
 def get_long_description(*filepaths):
-	for filepath in filepaths:
-		abspath = os.path.abspath(filepath)
+    for filepath in filepaths:
+        abspath = os.path.abspath(filepath)
 
-		if os.path.exists(abspath):
-			if os.path.isfile(abspath):
-				if os.path.getsize(abspath) > 0:
-					with io.open(abspath, mode = 'r', encoding = 'utf-8') as f:
-						content = f.read()
-			else:
-				raise ValueError('Not a file: {filepath}'.format(filepath = abspath))
-		else:
-			raise FileNotFoundError('No such file found: {filepath}'.format(filepath = abspath))
+        if not os.path.exists(abspath):
+            raise FileNotFoundError('No such file found: {filepath}'.format(filepath = abspath))
+        if not os.path.isfile(abspath):
+            raise ValueError('Not a file: {filepath}'.format(filepath = abspath))
+        if os.path.getsize(abspath) > 0:
+        	with io.open(abspath, mode = 'r', encoding = 'utf-8') as f:
+        		content = f.read()
 
 def get_dependencies(type_ = None, dirpath = 'requirements'):
-	abspath = dirpath if os.path.isabs(dirpath) else os.path.join(basedir, dirpath)
-	types   = [os.path.splitext(fname)[0] for fname in os.listdir(abspath)]
+    abspath = dirpath if os.path.isabs(dirpath) else os.path.join(basedir, dirpath)
+    types   = [os.path.splitext(fname)[0] for fname in os.listdir(abspath)]
 
-	if not os.path.exists(abspath):
-		raise ValueError('Directory {directory} not found.'.format(directory = abspath))
-	elif not os.path.isdir(abspath):
-		raise ValueError('{directory} is not a directory.'.format(directory = abspath))
+    if not os.path.exists(abspath):
+    	raise ValueError('Directory {directory} not found.'.format(directory = abspath))
+    elif not os.path.isdir(abspath):
+    	raise ValueError('{directory} is not a directory.'.format(directory = abspath))
 
-	if type_:
-		if type_ in types:
-			path         = os.path.join(abspath, '{type_}.txt'.format(type_ = type_))
-			dependencies = [str(d.req) for d in parse_requirements(path, session = 'meh')]
-
-			return dependencies
-		else:
-			raise ValueError('Incorrect dependency type {type_}'.format(type_ = type_))
-	else:
-		dependencies = dict()
-		
-		for type_ in types:
-			dependencies[type_] = get_dependencies(type_)
-		
-		return dependencies
+    if not type_:
+        return {type_: get_dependencies(type_) for type_ in types}
+    if type_ not in types:
+        raise ValueError('Incorrect dependency type {type_}'.format(type_ = type_))
+    path         = os.path.join(abspath, '{type_}.txt'.format(type_ = type_))
+    return [str(d.req) for d in parse_requirements(path, session = 'meh')]
 
 package = dict(
 	name             = 'candis',

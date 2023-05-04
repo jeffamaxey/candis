@@ -48,19 +48,17 @@ class Response(object):
         self.error   = error
         self.code    = self.error.code
 
-        if  messages:
+        if messages:
             if isinstance(messages, str):
                 messages = [messages]
 
             self.error.errors = [ ]
 
-            for message in messages:
-                self.error.errors.append(addict.Dict({ 'message': message }))
-
+            self.error.errors.extend(
+                addict.Dict({'message': message}) for message in messages
+            )
         self.schema.status = self.status
         self.schema.error  = self.error
 
     def to_dict(self):
-        dict_ = dict(self.schema)
-
-        return dict_
+        return dict(self.schema)

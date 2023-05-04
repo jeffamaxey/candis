@@ -66,7 +66,7 @@ class Pipeline(object):
             self.set_status(Pipeline.READY)
 
     # raise IOError, ValueError.
-    def load(stages):
+    def load(self):
         # if not os.path.isabs(path):
         #     path     = os.path.abspath(path)
 
@@ -77,14 +77,14 @@ class Pipeline(object):
 
         objekt       = Pipeline()
         # stages       = [addict.Dict(stage) for stage in read(path)]
-        stages = [addict.Dict(stage) for stage in stages]
-        if len(stages) == 0:
+        self = [addict.Dict(stage) for stage in stages]
+        if not self:
             raise ValueError('Pipeline is empty.')
 
         update       = [ ]
 
         fpath        = [addict.Dict(stage) for stage in stages if stage.code == 'dat.fle']
-        if len(fpath) == 0:
+        if not fpath:
             raise ValueError('No valid input found.')
         if len(fpath)  > 1:
             raise ValueError('More than one input file found.')
@@ -104,107 +104,121 @@ class Pipeline(object):
         stageprpbgc  = [stage for stage in stages if stage.code.startswith('prp.bgc')]
         if len(stageprpbgc)  > 1:
             raise ValueError('More than one Background Correction method provided.')
-        if len(stageprpbgc) == 0:
-            stageprpbgc     = addict.Dict(
-            {
-                   'ID': get_rand_uuid_str(),
-                 'code': 'prp.bgc',
-                 'name': 'Background Correction',
-                'value': 'rma',
-                'label': 'Robust Multi-Array Average'
-            })
-        else:
-            stageprpbgc     = stageprpbgc[0]
+        stageprpbgc = (
+            stageprpbgc[0]
+            if stageprpbgc
+            else addict.Dict(
+                {
+                    'ID': get_rand_uuid_str(),
+                    'code': 'prp.bgc',
+                    'name': 'Background Correction',
+                    'value': 'rma',
+                    'label': 'Robust Multi-Array Average',
+                }
+            )
+        )
         stageprpbgc.status  = Pipeline.READY
         config.preprocess.background_correction \
-        = stageprpbgc.value
+            = stageprpbgc.value
         objekt.add_stages(stageprpbgc)
 
         # Normalization
         stageprpnrm  = [stage for stage in stages if stage.code.startswith('prp.nrm')]
         if len(stageprpnrm)  > 1:
             raise ValueError('More than one Normalization method provided.')
-        if len(stageprpnrm) == 0:
-            stageprpnrm     = addict.Dict({
-                   'ID': get_rand_uuid_str(),
-                 'code': 'prp.nrm',
-                 'name': 'Normalization',
-                'value': 'quantiles',
-                'label': 'Quantiles'
-            })
-        else:
-            stageprpnrm    = stageprpnrm[0]
+        stageprpnrm = (
+            stageprpnrm[0]
+            if stageprpnrm
+            else addict.Dict(
+                {
+                    'ID': get_rand_uuid_str(),
+                    'code': 'prp.nrm',
+                    'name': 'Normalization',
+                    'value': 'quantiles',
+                    'label': 'Quantiles',
+                }
+            )
+        )
         stageprpnrm.status = Pipeline.READY
         config.preprocess.normalization \
-        = stageprpnrm.value
+            = stageprpnrm.value
         objekt.add_stages(stageprpnrm)
 
         # Phenotype Microarray Correction
         stageprppmc  = [stage for stage in stages if stage.code.startswith('prp.pmc')]
         if len(stageprppmc)  > 1:
             raise ValueError('More than one Phenotype Microarray Correction method provided.')
-        if len(stageprppmc) == 0:
-            stageprppmc     = addict.Dict({
-                   'ID': get_rand_uuid_str(),
-                 'code': 'prp.pmc',
-                 'name': 'Phenotype Microarray Correction',
-                'value': 'pmonly',
-                'label': 'PM Only'
-            })
-        else:
-            stageprppmc    = stageprppmc[0]
+        stageprppmc = (
+            stageprppmc[0]
+            if stageprppmc
+            else addict.Dict(
+                {
+                    'ID': get_rand_uuid_str(),
+                    'code': 'prp.pmc',
+                    'name': 'Phenotype Microarray Correction',
+                    'value': 'pmonly',
+                    'label': 'PM Only',
+                }
+            )
+        )
         stageprppmc.status = Pipeline.READY
         config.preprocess.phenotype_microarray_correction \
-        = stageprppmc.value
+            = stageprppmc.value
         objekt.add_stages(stageprppmc)
 
         # Summarization
         stageprpsum  = [stage for stage in stages if stage.code.startswith('prp.sum')]
         if len(stageprpsum)  > 1:
             raise ValueError('More than one Summarization method provided.')
-        if len(stageprpsum) == 0:
-            stageprpsum     = addict.Dict({
-                   'ID': get_rand_uuid_str(),
-                 'code': 'prp.sum',
-                 'name': 'Summarization',
-                'value': 'medianpolish',
-                'label': 'Median Polish'
-            })
-        else:
-            stageprpsum    = stageprpsum[0]
+        stageprpsum = (
+            stageprpsum[0]
+            if stageprpsum
+            else addict.Dict(
+                {
+                    'ID': get_rand_uuid_str(),
+                    'code': 'prp.sum',
+                    'name': 'Summarization',
+                    'value': 'medianpolish',
+                    'label': 'Median Polish',
+                }
+            )
+        )
         stageprpsum.status = Pipeline.READY
         config.preprocess.summary \
-        = stageprpsum.value
+            = stageprpsum.value
         objekt.add_stages(stageprpsum)
 
         # k-Fold Cross Validation
         stageprpkcv  = [stage for stage in stages if stage.code.startswith('prp.kcv')]
         if len(stageprpkcv)  > 1:
             raise ValueError('More than one fold value provided.')
-        if len(stageprpkcv) == 0:
-            stageprpkcv     = addict.Dict({
-                   'ID': get_rand_uuid_str(),
-                 'code': 'prp.kcv',
-                 'name': 'k-Fold Cross Validation',
-                'value': 2,
-                'label': 2
-            })
-        else:
-            stageprpkcv    = stageprpkcv[0]
+        stageprpkcv = (
+            stageprpkcv[0]
+            if stageprpkcv
+            else addict.Dict(
+                {
+                    'ID': get_rand_uuid_str(),
+                    'code': 'prp.kcv',
+                    'name': 'k-Fold Cross Validation',
+                    'value': 2,
+                    'label': 2,
+                }
+            )
+        )
         stageprpkcv.status = Pipeline.READY
         config.preprocess.folds \
-        = int(stageprpkcv.value)
+            = int(stageprpkcv.value)
         objekt.add_stages(stageprpkcv)
 
         # Feature Selection
         stageats     = [stage for stage in stages if stage.code.startswith('ats')]
         config.feature_selection \
-        = [stage.value for stage in stageats]
+            = [stage.value for stage in stageats]
         objekt.add_stages(*stageats)
 
         stagelrn     = [stage for stage in stages if stage.code.startswith('lrn')]
         config.model \
-        = [stage.value for stage in stagelrn]
+            = [stage.value for stage in stagelrn]
         objekt.add_stages(*stagelrn)
 
         objekt.set_config(config)

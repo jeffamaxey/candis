@@ -43,20 +43,18 @@ def get_attribute_pattern():
     wrapper     = '({regex})?'
     regex       = '|'.join([attt['tag'] for attt in ATTRIBUTE_TYPES])
 
-    pattern     = re.compile(wrapper.format(regex = regex))
-
-    return pattern
+    return re.compile(wrapper.format(regex = regex))
 
 ATTRIBUTE_PATTERN = get_attribute_pattern()
 
 def get_attribute_type(attr, data):
     kind          = None
-    dtype         = data.dtype
     for attt in ATTRIBUTE_TYPES:
         if attt['tag'] in attr:
             kind  = attt['name']
 
     if not kind:
+        dtype         = data.dtype
         # TODO: check attribute type using data provided
         if dtype is np.dtype('O'):
             kind  = 'nominal'
@@ -84,17 +82,17 @@ def get_attribute_metadata(attr, data):
 class CData(object):
     CONFIG = CONFIG.Pipeline.Preprocess
 
-    def load(path, delimiter = ','):
+    def load(self, delimiter = ','):
         # NOTE - Let pandas check for file exists.
-        data         = pd.read_csv(path, sep = delimiter)
+        data = pd.read_csv(self, sep = delimiter)
 
-        abspath      = os.path.abspath(path)
+        abspath = os.path.abspath(self)
         head, tail   = os.path.split(abspath)
 
         columns      = list(data.columns)
         cclass       = [col for col in columns if '!class' in col]
 
-        if len(cclass) == 0:
+        if not cclass:
             raise ValueError('No class attribute found.')
         if len(cclass) != 1:
             raise ValueError('More than one class attribute found.')
@@ -106,12 +104,12 @@ class CData(object):
             if any(tag in column for tag in ('!file', '!cel')):
                 for i, p in enumerate(data[column]):
                     if not os.path.isabs(p):
-                        path = os.path.normpath(os.path.join(head, p))
+                        self = os.path.normpath(os.path.join(head, p))
 
-                    if not os.path.exists(path) and not os.path.isfile(path):
-                        raise ValueError('{path} is not a valid file.'.format(path = path))
-                    
-                    data[column].loc[i] = path
+                    if not os.path.exists(self) and not os.path.isfile(self):
+                        raise ValueError('{path} is not a valid file.'.format(self=self))
+
+                    data[column].loc[i] = self
 
         cdat         = CData()
         cdat.data    = data
@@ -120,17 +118,17 @@ class CData(object):
 
         return cdat
 
-    def load_from_json(buffer_, path):
+    def load_from_json(self, path):
         # path is required for CEL file!
-        
-        df = pd.read_json(json.dumps(buffer_['data']), orient='records')
-        cols = addict.Dict(zip(list(df.columns), buffer_['cnames']))
+
+        df = pd.read_json(json.dumps(self['data']), orient='records')
+        cols = addict.Dict(zip(list(df.columns), self['cnames']))
         df.rename(columns=cols, inplace=True)
 
         columns = list(df.columns)
         cclass       = [col for col in columns if '!class' in col]
 
-        if len(cclass) == 0:
+        if not cclass:
             raise ValueError('No class attribute found.')
         if len(cclass) != 1:
             raise ValueError('More than one class attribute found.')
@@ -140,7 +138,7 @@ class CData(object):
         abspath      = os.path.abspath(path)
         head, tail   = os.path.split(abspath)        
 
-        if buffer_:
+        if self:
             for column in list(df.columns):
                 if any(tag in column for tag in ('!file', '!cel')):
                     for i, p in enumerate(df[column]):
@@ -169,66 +167,65 @@ class CData(object):
 
         if not paths:
             raise ValueError('No valid DNA microarray found.')
-        else:
-            importr('affy')
+        importr('affy')
 
-            robj = robjects.r('read.affybatch')
-            cels = robj(*paths)
+        robj = robjects.r('read.affybatch')
+        cels = robj(*paths)
 
-            para = CData.CONFIG
-            para.update(express_config)
+        para = CData.CONFIG
+        para.update(express_config)
 
-            robj = robjects.r('expresso')
-            eset = robj(cels,
-              normalize_method = para.NORMALIZATION,
-              bgcorrect_method = para.BACKGROUND_CORRECTION,
-              pmcorrect_method = para.PHENOTYPE_MICROARRAY_CORRECTION,
-                summary_method = para.SUMMARY,
-                       verbose = verbose
-            )
+        robj = robjects.r('expresso')
+        eset = robj(cels,
+          normalize_method = para.NORMALIZATION,
+          bgcorrect_method = para.BACKGROUND_CORRECTION,
+          pmcorrect_method = para.PHENOTYPE_MICROARRAY_CORRECTION,
+            summary_method = para.SUMMARY,
+                   verbose = verbose
+        )
 
-            name = '.tmp.eset'
-            robj = robjects.r('write.exprs')
-            robj(eset, file = name)
+        name = '.tmp.eset'
+        robj = robjects.r('write.exprs')
+        robj(eset, file = name)
 
-            eset = pd.read_csv(name, sep = '\t')
-            AIDs = eset.ix[:, 0] # Affymetrix IDs
-            data = eset.ix[:,1:].T
+        eset = pd.read_csv(name, sep = '\t')
+        AIDs = eset.ix[:, 0] # Affymetrix IDs
+        data = eset.ix[:,1:].T
 
-            meta = addict.Dict()
-            meta.relation    = 'affy'
-            attrs            = [(ID, 'NUMERIC') for ID in AIDs]
+        meta = addict.Dict()
+        meta.relation    = 'affy'
+        attrs            = [(ID, 'NUMERIC') for ID in AIDs]
 
-            for column in self.data.columns:
-                attr         = get_attribute_metadata(column, self.data[column])
-                if not attr.type in ('file', 'cel', 'class'):
+        for column in self.data.columns:
+            attr         = get_attribute_metadata(column, self.data[column])
+            if attr.type not in ('file', 'cel', 'class'):
 
-                    if attr.type is 'nominal':
-                        vals = list(self.data[column].unique())
-                        form = [(attr.name, vals)]
+                if attr.type is 'nominal':
+                    vals = list(self.data[column].unique())
+                    form = [(attr.name, vals)]
 
-                    if attr.type is 'numeric':
-                        form = [(attr.name, 'NUMERIC')]
+                if attr.type is 'numeric':
+                    form = [(attr.name, 'NUMERIC')]
 
-                    attrs   += form
-                    data     = data.assign(**{ attr.name: self.data[column].values })
+                attrs   += form
+                data     = data.assign(**{ attr.name: self.data[column].values })
 
 
-            cvals            = list(self.clss.unique())
+        cvals            = list(self.clss.unique())
 
-            attrs           += [('CLASS', cvals)]
-            data             = data.assign(label = self.clss.values)
+        attrs           += [('CLASS', cvals)]
+        data             = data.assign(label = self.clss.values)
 
-            meta.attributes  = attrs
-            meta.data        = list(data.values)
+        meta.attributes  = attrs
+        meta.data        = list(data.values)
 
-            handle           = open(path, mode = 'w') if isinstance(path, str) else path
+        handle           = open(path, mode = 'w') if isinstance(path, str) else path
 
-            arff.dump(meta, handle)
+        arff.dump(meta, handle)
 
-            handle.close()
+        handle.close()
 
-            os.remove(name)
+        os.remove(name)
 
     def toPandas(self, path):
         '''Converts a ARFF file into Pandas dataframe.
@@ -243,13 +240,11 @@ class CData(object):
         for attr in attrs:
             if isinstance(attr[1], list):
                 # list for the possible values of the column
-                attrs_t.append("{}@[{}]".format(attr[0], ', '.join(attr[1])))
+                attrs_t.append(f"{attr[0]}@[{', '.join(attr[1])}]")
             else:
                 # this indicates type of values/data-points in a column.
-                attrs_t.append("{}@{}".format(attr[0], attr[1]))
-        # TODO: To make the dataframe memory efficient.
-        df = pd.DataFrame(data=arff_file['data'], columns=attrs_t)
-        return df
+                attrs_t.append(f"{attr[0]}@{attr[1]}")
+        return pd.DataFrame(data=arff_file['data'], columns=attrs_t)
 
     def to_json(self, buffer_):
         try:
@@ -262,13 +257,13 @@ class CData(object):
                 cnames.append(cname)
             buffer_.update({"cnames": cnames})
         except Exception as e:
-            print(str(e))
+            print(e)
     
     def to_dict(self):
         data       = self.data.copy()
 
         meta       = addict.Dict()
-        meta.attrs = list()
+        meta.attrs = []
         for column in data.columns:
             attr   = get_attribute_metadata(column, data[column])
             data   = data.rename(columns = { column: attr.name })
@@ -279,11 +274,9 @@ class CData(object):
 
         return meta
 
-    def from_dict(meta):
+    def from_dict(self):
         # Wrap CData.writer with this routine instead and have it implemented here.
         raise NotImplementedError
 
     def __repr__(self):
-        string = self.data.to_string()
-
-        return string
+        return self.data.to_string()

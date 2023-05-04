@@ -42,8 +42,7 @@ def safe_decode(object_, encoding="utf-8"):
 
 
 def sequence_filter(list_, filter_, type_=list):
-    result = type_(filter(filter_, list_))
-    return result
+    return type_(filter(filter_, list_))
 
 
 def get_revision(path, short=False, raise_err=True):
@@ -65,8 +64,7 @@ def get_revision(path, short=False, raise_err=True):
     return revision
 
 
-path = dict()
-path["base"] = pardir(__file__)
+path = {"base": pardir(__file__)}
 path["version"] = osp.join(path["base"], "VERSION")
 
 __name__ = "candis"

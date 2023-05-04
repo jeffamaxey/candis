@@ -63,4 +63,4 @@ class User(db.Model):
         db.session.close()
 
     def __repr__(self):
-        return '<User {}>'.format(self.username)
+        return f'<User {self.username}>'

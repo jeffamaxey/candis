@@ -23,10 +23,6 @@ def sanitize_response(response, type_ = 'json'):
         except KeyError:
             kres = 'result'  # for esummary
             data = data[kres]
-    else:
-        # TODO: What other types can be handled? XML, HTML, etc.
-        pass
-
     return data
 
 def sanitize_term(term):
@@ -79,37 +75,37 @@ class API(object):
 
     @property
     def baseparams(self):
-        params = dict({ 'tool': self.name, 'email': self.email,
-                        'api_key': self.api_key, 'retmode': 'json' })
-
-        return params
+        return dict(
+            {
+                'tool': self.name,
+                'email': self.email,
+                'api_key': self.api_key,
+                'retmode': 'json',
+            }
+        )
 
     def _throttle(self):
         # checks limit for calling entrez API.
         if self.redis.if_exists('last_api_request_timestamp'):
             previous = self.redis.redis.get('last_api_request_timestamp')
             diff = time.time() - float(previous)
-            if self.api_key:
-                if diff <= 0.10:
-                    raise requests.Timeout("Server is busy")
-            else:
-                if diff <= 0.33:
-                    raise requests.Timeout("Server is busy")
+            if self.api_key and diff <= 0.10 or not self.api_key and diff <= 0.33:
+                raise requests.Timeout("Server is busy")
         else:
             self.redis.redis.set('last_api_request_timestamp', time.time())
   
     def request(self, method, url, parameters = None, *args, **kwargs):
-        parameters = assign_if_none(parameters, dict())
+        parameters = assign_if_none(parameters, {})
         params     = self.baseparams
         if not params['api_key']:
             del params['api_key']
         params.update(parameters)
         parameter_string = params_dict2string(params)
-        
+
         self._throttle()
         response = requests.request(method, url, params = parameter_string, *args, **kwargs)
         self.redis.redis.set('last_api_request_timestamp', time.time())
-        
+
         if response.ok:
             data = sanitize_response(response, params['retmode'])
         else:
@@ -123,7 +119,7 @@ class API(object):
 
         if not isinstance(refresh_cache, bool):
             raise TypeError("refresh_cache should be a boolean value")
-     
+
         # Check if we haven't cached database list
         if refresh_cache:
             # GET is do-able
@@ -138,42 +134,32 @@ class API(object):
 
         # Check if db is not None or not an empty string
         if db:
-            if db in self.databases:
-                # Passed conditions, get info
-                data      = self.request('get', URL.INFO, { 'db': db })
-                returns   = data['dbinfo']
-            else:
-                raise ValueError('database should be from : {}'.format(self.databases))
+            if db not in self.databases:
+                raise ValueError(f'database should be from : {self.databases}')
 
+            # Passed conditions, get info
+            data      = self.request('get', URL.INFO, { 'db': db })
+            returns   = data['dbinfo']
         return returns
         
     def search(self, db = 'pubmed', term = [], **optional):
         if db not in self.databases:
-            raise ValueError('database should be from : {}'.format(self.databases))
+            raise ValueError(f'database should be from : {self.databases}')
         # neglect term parameter if query_key present
-        if(optional.get('query_key') and optional.get('WebEnv')):
-            optional.update({'db': db})
-            data = self.request('get', URL.SEARCH, optional)
-            return data
-
+        if (optional.get('query_key') and optional.get('WebEnv')):
+            optional['db'] = db
+            return self.request('get', URL.SEARCH, optional)
         term = sanitize_term(term)
-        params = dict({ 'db': db, 'term': term })
-        params.update(optional)
-        data = self.request('get', URL.SEARCH, params)
-        
-        return data
+        params = { 'db': db, 'term': term } | optional
+        return self.request('get', URL.SEARCH, params)
 
     def summary(self, db = 'pubmed', id = [], **optional):   
          
-        if(optional.get('query_key') and optional.get('WebEnv')):
+        if (optional.get('query_key') and optional.get('WebEnv')):
             if db not in self.databases:
-                raise ValueError('database should be from : {}'.format(self.databases))            
+                raise ValueError(f'database should be from : {self.databases}')
             # print("Using WebEnv and query_key") - TODO: Use logging instead
-            optional.update({'db': db})
-            data = self.request('get', URL.SUMMARY, optional)
-            return data
-
-        params = dict({ 'db': db, 'id': id})
-        params.update(optional)
-        data = self.request('get', URL.SUMMARY, params)
-        return data
+            optional['db'] = db
+            return self.request('get', URL.SUMMARY, optional)
+        params = { 'db': db, 'id': id} | optional
+        return self.request('get', URL.SUMMARY, params)

@@ -71,19 +71,18 @@ def discover_resource(path, level = None, filter_ = None):
         relpath = os.path.join(path, file_)
         abspath = os.path.abspath(relpath)
 
-        if os.path.isfile(abspath):
-            if filter_:
-                format_ = get_file_format(file_)
+        if os.path.isfile(abspath) and filter_:
+            format_ = get_file_format(file_)
 
-                if format_ in filter_:
-                    size        = os.path.getsize(abspath)
+            if format_ in filter_:
+                size        = os.path.getsize(abspath)
 
-                    wrap        = addict.Dict()
-                    wrap.name   = file_
-                    wrap.size   = size
-                    wrap.format = format_
+                wrap        = addict.Dict()
+                wrap.name   = file_
+                wrap.size   = size
+                wrap.format = format_
 
-                    tree.files.append(wrap)
+                tree.files.append(wrap)
 
         if os.path.isdir(abspath):
             resource    = discover_resource(
@@ -100,7 +99,7 @@ def discover_resource(path, level = None, filter_ = None):
     return tree
 
 def log_times(i):
-    print("No. of times tried to connect to NCBI: {}".format(i))
+    print(f"No. of times tried to connect to NCBI: {i}")
 
 @app.route(CONFIG.App.Routes.API.Data.RESOURCE, methods = ['GET', 'POST'])
 @login_required
@@ -111,7 +110,11 @@ def resource(user, filter_ = ['csv', 'cel', 'model', 'arff'], level = None):
     parameters = addict.Dict(request.get_json())
 
     data_path = os.path.join(CONFIG.App.DATADIR, modify_data_path(username))
-    path       = data_path if not parameters.path else os.path.join(data_path, parameters.path)
+    path = (
+        os.path.join(data_path, parameters.path)
+        if parameters.path
+        else data_path
+    )
 
     tree       = discover_resource(
       path     = path,
@@ -193,18 +196,15 @@ def read(user):
         if not flag:
             response.set_error(Response.Error.NOT_FOUND, 
             'Gist file does not exist in the database')
-        
+
     if parameters.name and parameters.format:
         path        = os.path.join(parameters.path, parameters.name)
 
         if os.path.exists(path):
-            if parameters.format in ['pipeline', 'cdata', 'gist']:
-                pass
-            else:
+            if parameters.format not in ['pipeline', 'cdata', 'gist']:
                 response.set_error(Response.Error.UNPROCESSABLE_ENTITY, 'Here')
-        else:
-            if parameters.format not in ['pipeline', 'cdata']:
-                response.set_error(Response.Error.NOT_FOUND, 'File does not exist.')
+        elif parameters.format not in ['pipeline', 'cdata']:
+            response.set_error(Response.Error.NOT_FOUND, 'File does not exist.')
     else:
         response.set_error(Response.Error.UNPROCESSABLE_ENTITY, 'There')
 
@@ -224,7 +224,7 @@ def write(user, output = { 'name': '', 'path': '', 'format': None }):
 
     username = user.username
     parameters   = addict.Dict(request.get_json())
-    
+
     if parameters.output:
         output   = addict.Dict(merge_dicts(output, parameters.output))
 
@@ -234,9 +234,9 @@ def write(user, output = { 'name': '', 'path': '', 'format': None }):
     buffer_      = assign_if_none(parameters.buffer, [])
 
     opath = os.path.join(output.path, output.name)
-        
+
     if output.format:
-        if  output.format == 'cdata':
+        if output.format == 'cdata':
             handler = cdata
 
             if output.name in ['', '.cdata', '.CDATA']:
@@ -248,17 +248,15 @@ def write(user, output = { 'name': '', 'path': '', 'format': None }):
 
             cdat = handler.CData()
             cdat.to_json(buffer_)
-            cdata_obj = Cdata.get_cdata(name=output.name)
-            
-            if not cdata_obj:
+            if cdata_obj := Cdata.get_cdata(name=output.name):
+                cdata_obj.update_cdata(value=json.dumps(buffer_))
+
+            else:
                 new_cdata = Cdata(name=name, user=user, value=json.dumps(buffer_))
                 new_cdata.add_cdata()
                 cdata_obj = new_cdata
-            else:
-                cdata_obj.update_cdata(value=json.dumps(buffer_))
-
             cdat = handler.CData.load_from_json(buffer_, opath)
-            
+
             data = addict.Dict(output=output, data=(cdat.to_dict()))
             response.set_data(data)
 
@@ -272,16 +270,14 @@ def write(user, output = { 'name': '', 'path': '', 'format': None }):
 
             output.name = name
 
-            pipe = Pipeline.get_pipeline(name=output.name)
+            if pipe := Pipeline.get_pipeline(name=output.name):
+                pipe.update_pipeline(last_modified=datetime.utcnow(), stages=json.dumps(buffer_))
 
-            if not pipe:
+            else:
                 # list is empty i.e. pipeline is just created.
                 new_pipe = Pipeline(name=output.name, user=user, stages=json.dumps(buffer_))
                 new_pipe.add_pipeline()
                 pipe = new_pipe
-            else:
-                pipe.update_pipeline(last_modified=datetime.utcnow(), stages=json.dumps(buffer_))
-
             data = addict.Dict(output=output, data=(buffer_))
             response.set_data(data)
 
@@ -301,19 +297,19 @@ def delete(user):
     username = user.username
     parameters   = addict.Dict(request.get_json())
     opath        = os.path.join(ABSPATH_STARTDIR, parameters.name)
-    
+
     flag = False
     for pipeline in user.pipelines:
         if parameters.name == pipeline.name:
             pipeline.delete_pipeline()
-            data = addict.Dict(message="successfully deleted pipeline {}".format(parameters.name))
+            data = addict.Dict(message=f"successfully deleted pipeline {parameters.name}")
             response.set_data(data)
             flag = True
             break
 
     if not flag:
         response.set_error(Response.Error.NOT_FOUND, 'Pipeline does not exist in the database')
-    
+
     dict_ = response.to_dict()
     save_response_to_db(dict_)
     json_ = jsonify(dict_)

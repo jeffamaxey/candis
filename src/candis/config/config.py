@@ -69,10 +69,7 @@ class Config(object):
         return value
 
     def __repr__(self, indent = 2):
-        string = pprint.pformat(self.schema, indent = indent)
-
-        return string
+        return pprint.pformat(self.schema, indent = indent)
 
     def __iter__(self):
-        for child in self.children:
-            yield child
+        yield from self.children

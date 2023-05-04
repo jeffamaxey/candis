@@ -24,8 +24,7 @@ def generate_token(user_, key=app.config['SECRET_KEY'], delay=os.environ.get('EX
     if delay:
         exp = datetime.datetime.utcnow() + datetime.timedelta(seconds=delay)
         payload.update({'exp': exp})
-    encoded_token = jwt.encode(payload=payload, key=key).decode('utf-8')
-    return encoded_token
+    return jwt.encode(payload=payload, key=key).decode('utf-8')
 
 @app.route(CONFIG.App.Routes.API.User.SIGN_UP, methods=['POST'])
 @logout_required
@@ -37,12 +36,12 @@ def sign_up():
     if User.get_user(username=username):
         response.set_error(
             Response.Error.UNPROCESSABLE_ENTITY,
-            "User with username '{}'is already registered".format(username)
+            f"User with username '{username}'is already registered",
         )
     elif User.get_user(email=email):
         response.set_error(
             Response.Error.UNPROCESSABLE_ENTITY,
-            "User with email '{}' is already registered".format(email)
+            f"User with email '{email}' is already registered",
         )
     else:
         new_user = User(username, email, password)
@@ -65,9 +64,9 @@ def sign_up():
         except OSError as e:
             response.set_error(
                 Response.Error.UNPROCESSABLE_ENTITY,
-                'could not setup data directory: {}'.format(e)
+                f'could not setup data directory: {e}',
             )
-    
+
     gc.collect()
 
     dict_      = response.to_dict()
@@ -83,12 +82,12 @@ def login():
     response = Response()
     form = addict.Dict(request.get_json())
     username, password = form['username'], form['password']
-    
+
     user = User.get_user(username=username)
     if not user:
         response.set_error(
             Response.Error.UNPROCESSABLE_ENTITY,
-            'No User with username {} found'.format(username)
+            f'No User with username {username} found',
         )
     elif not verify_password(user.password, password):
         response.set_error(
@@ -132,8 +131,7 @@ def forgot():
     response = Response()
     form = addict.Dict(request.get_json())
     email = form['email']
-    user = User.get_user(email=email)
-    if user:
+    if user := User.get_user(email=email):
         delay = 900
         reset_token = generate_token(user, delay=delay)
         msg = Message(
@@ -142,13 +140,15 @@ def forgot():
         )
         # need to update url with prefix host name during runtime.
         url = request.host_url.rsplit('/', 1)[0] + CONFIG.App.Routes.RESET_PASSWORD
-        msg.html = MailMessage.forgot_password_body(url=url, reset_token=reset_token, time='{} minutes'.format(delay/60))
+        msg.html = MailMessage.forgot_password_body(
+            url=url, reset_token=reset_token, time=f'{delay / 60} minutes'
+        )
         mail.send(msg)
         response.set_data({'message': 'Check your inbox for password reset link!'})
     else:
         response.set_error(
             Response.Error.UNPROCESSABLE_ENTITY,
-            "user with email '{}' is not registered with us".format(email)
+            f"user with email '{email}' is not registered with us",
         )
 
     dict_      = response.to_dict()

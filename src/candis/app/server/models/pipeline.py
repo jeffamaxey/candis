@@ -54,10 +54,14 @@ class Pipeline(db.Model):
 
     @classmethod
     def of_user(cls, user=None, pipe_name=None):
-        for pipeline in user.pipelines:
-            if pipeline.name == pipe_name:
-                return pipeline
-        return None
+        return next(
+            (
+                pipeline
+                for pipeline in user.pipelines
+                if pipeline.name == pipe_name
+            ),
+            None,
+        )
 
 class PipelineRun(db.Model):
     __tablename__ = 'pipeline_run'
@@ -78,11 +82,15 @@ class PipelineRun(db.Model):
             print(e)  # use logging
 
     @classmethod
-    def of_pipeline(pipeline=None, gist_name=None):
-        for pipe_run in pipeline.pipeline_run:
-            if json.loads(pipe_run.gist)['name'] == gist_name:
-                return pipe_run
-        return None
+    def of_pipeline(cls, gist_name=None):
+        return next(
+            (
+                pipe_run
+                for pipe_run in cls.pipeline_run
+                if json.loads(pipe_run.gist)['name'] == gist_name
+            ),
+            None,
+        )
 
 class Cdata(db.Model):
     __tablename__ = 'cdata'
@@ -115,8 +123,5 @@ class Cdata(db.Model):
         db.session.commit()    
 
     @classmethod
-    def of_user(user=None, cdata_name=None):
-        for cdat in user.cdata:
-            if cdat.name == cdata_name:
-                return cdat
-        return None
+    def of_user(cls, cdata_name=None):
+        return next((cdat for cdat in cls.cdata if cdat.name == cdata_name), None)

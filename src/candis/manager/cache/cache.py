@@ -33,6 +33,4 @@ class Cache(object):
 
     def get_config(self):
         path = os.path.join(self.location, self.dirname, 'config.json')
-        para = JSON.read(path)
-
-        return para
+        return JSON.read(path)

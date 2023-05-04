@@ -2,6 +2,4 @@
 from candis.ios import json as JSON
 
 def read(path):
-    pipeline = JSON.read(path)
-
-    return pipeline
+    return JSON.read(path)

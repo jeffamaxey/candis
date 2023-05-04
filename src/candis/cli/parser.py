@@ -13,6 +13,4 @@ class ArgumentParser(argparse.ArgumentParser):
             help    = argument.HELP)
 
     def parse(self, argv = None):
-        args        = self.parse_args(argv)
-
-        return args
+        return self.parse_args(argv)

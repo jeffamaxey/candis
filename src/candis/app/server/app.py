@@ -52,7 +52,7 @@ try:
         INTEGRATE_SOCKETIO = env.str('CANDIS_INTEGRATE_SOCKETIO', default='True')
     )
 except ConfigurationError as e:
-    log.error("SET environment variables first: {}".format(e))
+    log.error(f"SET environment variables first: {e}")
     sys.exit(1)
 
 app.config.update(app_config)

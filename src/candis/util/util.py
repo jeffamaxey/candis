@@ -11,7 +11,7 @@ def assign_if_none(object_, value):
 	return object_
 
 def pardir(path, up = 1):
-	for i in range(up):
+	for _ in range(up):
 		path = os.path.dirname(path)
 
 	return path
@@ -20,9 +20,7 @@ def get_rand_uuid_str():
 	object_ = uuid.uuid4()
 	string  = str(object_)
 
-	strip   = string.replace('-', '')
-
-	return strip
+	return string.replace('-', '')
 
 def get_free_port(host = None, seed = 1024):
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -37,13 +35,12 @@ def get_free_port(host = None, seed = 1024):
 
 		sock.close()
 	except socket.error as e:
-		if e.errno == errno.EADDRINUSE:
-			if seed == 65535:
-				raise ValueError('No ports available.')
-			else:
-				port = get_free_port(host, seed = seed + 1)
-		else:
+		if e.errno != errno.EADDRINUSE:
 			raise e
+		if seed == 65535:
+			raise ValueError('No ports available.')
+		else:
+			port = get_free_port(host, seed = seed + 1)
 	finally:
 		sock.close()
 
@@ -57,17 +54,15 @@ def makedirs(path, exists_ok = False):
 			raise
 
 def get_timestamp_str(format_):
-		string = time.strftime(format_)
-
-		return string
+	return time.strftime(format_)
 
 def merge_dicts(*args):
-		merged = dict()
+	merged = {}
 
-		for dict_ in args:
-				merged.update(dict_)
+	for dict_ in args:
+		merged |= dict_
 
-		return merged
+	return merged
 
 def get_b64_plot(axes, format_ = 'png'):
 	handler = io.BytesIO()
@@ -92,11 +87,9 @@ def buffer_to_b64(buffer):
 	return b64str
 
 def modify_test_path(fname, ftype = 'arff'):
-    test_path = '{}.test.{}'.format(fname, ftype)
-    return test_path
+	return f'{fname}.test.{ftype}'
 
 def modify_train_path(fname, ftype = 'arff'):
-    train_path = '{}.train.{}'.format(fname, ftype)
-    return train_path
+	return f'{fname}.train.{ftype}'
 
 

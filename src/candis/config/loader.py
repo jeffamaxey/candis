@@ -35,7 +35,7 @@ class Loader(object):
         yaml.add_constructor(name, constructor)
 
     def load(self, filename = None):
-        data     = dict()
+        data = {}
 
         with open(Loader.DEFAULT_CONFIG) as f:
             data = yaml.load(f)

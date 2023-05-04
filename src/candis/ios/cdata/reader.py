@@ -2,6 +2,4 @@
 from candis.ios.cdata import CData
 
 def read(path, *args, **kwargs):
-    cdat = CData.load(path)
-
-    return cdat
+    return CData.load(path)
